@@ -1,6 +1,18 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Box, Button, TextField, Typography, InputAdornment, IconButton, Link, Divider } from "@mui/material"
+import {
+	Box,
+	Button,
+	TextField,
+	Typography,
+	InputAdornment,
+	IconButton,
+	Link,
+	Divider,
+	CircularProgress,
+	Snackbar,
+	Alert
+} from "@mui/material"
 import { Visibility, VisibilityOff } from "@mui/icons-material"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faEnvelope } from "@fortawesome/free-solid-svg-icons"
@@ -13,6 +25,8 @@ export function Login() {
 	const [password, setPassword] = useState("")
 	const [errors, setErrors] = useState({ email: "", password: "" })
 	const [apiError, setApiError] = useState("")
+	const [loading, setLoading] = useState(false)
+	const [snackbarOpen, setSnackbarOpen] = useState(false)
 	const navigate = useNavigate()
 
 	const handleTogglePassword = () => {
@@ -20,6 +34,7 @@ export function Login() {
 	}
 
 	const handleLogin = async () => {
+		setLoading(true)
 		let newErrors = { email: "", password: "" }
 
 		if (!email) newErrors.email = "Email is required"
@@ -33,10 +48,15 @@ export function Login() {
 		if (!newErrors.email && !newErrors.password) {
 			try {
 				const data = await login(email, password)
-				alert("Login Successful!")
-				navigate("/home")
+				localStorage.setItem("userDetails", data)
+				setSnackbarOpen(true)
+				setTimeout(() => {
+					navigate("/home")
+				}, 2000)
 			} catch (error: any) {
-				setApiError(error)
+				setApiError(error.message || "Login failed")
+			} finally {
+				setLoading(false)
 			}
 		}
 	}
@@ -96,8 +116,8 @@ export function Login() {
 					</Link>
 				</Box>
 
-				<Button variant='contained' color='primary' fullWidth onClick={handleLogin}>
-					Login
+				<Button variant='contained' color='primary' fullWidth onClick={handleLogin} disabled={loading}>
+					{loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : "Login"}
 				</Button>
 
 				<Divider sx={{ width: "100%", my: 2 }}>OR</Divider>
@@ -120,6 +140,12 @@ export function Login() {
 					Login with Microsoft
 				</Button>
 			</Box>
+
+			<Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
+				<Alert onClose={() => setSnackbarOpen(false)} severity='success' sx={{ width: "100%" }}>
+					Login Successful!
+				</Alert>
+			</Snackbar>
 		</Box>
 	)
 }

@@ -34,6 +34,36 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 	}
 }
 
+export const login = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { email, password } = req.body
+
+		const user = await User.findOne({ email })
+		if (!user) {
+			res.status(400).json({ error: "Invalid email or password" })
+			return
+		}
+
+		if (!user.isVerified) {
+			res.status(400).json({ error: "Email is not verified. Please check your email." })
+			return
+		}
+
+		const isMatch = await bcrypt.compare(password, user.password)
+		if (!isMatch) {
+			res.status(400).json({ error: "Invalid email or password" })
+			return
+		}
+
+		const token = generateToken(user.email)
+
+		res.status(200).json({ message: "Login successful", token })
+	} catch (error) {
+		console.error(error)
+		res.status(500).json({ error: "Login failed" })
+	}
+}
+
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
 	try {
 		const { token } = req.query

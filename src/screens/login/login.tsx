@@ -5,19 +5,21 @@ import { Visibility, VisibilityOff } from "@mui/icons-material"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faEnvelope } from "@fortawesome/free-solid-svg-icons"
 import styles from "./login.module.css"
+import { login } from "../api"
 
 export function Login() {
 	const [showPassword, setShowPassword] = useState(false)
 	const [email, setEmail] = useState("")
 	const [password, setPassword] = useState("")
 	const [errors, setErrors] = useState({ email: "", password: "" })
+	const [apiError, setApiError] = useState("")
 	const navigate = useNavigate()
 
 	const handleTogglePassword = () => {
 		setShowPassword(!showPassword)
 	}
 
-	const handleLogin = () => {
+	const handleLogin = async () => {
 		let newErrors = { email: "", password: "" }
 
 		if (!email) newErrors.email = "Email is required"
@@ -29,8 +31,13 @@ export function Login() {
 		setErrors(newErrors)
 
 		if (!newErrors.email && !newErrors.password) {
-			alert("Login Successful!")
-			navigate("/home")
+			try {
+				const data = await login(email, password)
+				alert("Login Successful!")
+				navigate("/home")
+			} catch (error: any) {
+				setApiError(error)
+			}
 		}
 	}
 
@@ -40,6 +47,8 @@ export function Login() {
 				<Typography variant='h4' className={styles.title}>
 					Login
 				</Typography>
+
+				{apiError && <Typography color='error'>{apiError}</Typography>}
 
 				<TextField
 					label='Email'

@@ -5,6 +5,7 @@ import { Visibility, VisibilityOff } from "@mui/icons-material"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faEnvelope, faUser } from "@fortawesome/free-solid-svg-icons"
 import styles from "./signup.module.css"
+import { signup } from "../api"
 
 interface SignupState {
 	name: string
@@ -22,37 +23,51 @@ const initialSignupState: SignupState = {
 
 export function Signup() {
 	const [showPassword, setShowPassword] = useState(false)
-	const [sigup, setSignup] = useState<SignupState>(initialSignupState)
-	const [name, setName] = useState("")
-	const [email, setEmail] = useState("")
-	const [password, setPassword] = useState("")
-	const [confirmPassword, setConfirmPassword] = useState("")
-	const [errors, setErrors] = useState({ name: "", email: "", password: "", confirmPassword: "" })
+	const [signupData, setSignupData] = useState(initialSignupState)
+	const [errors, setErrors] = useState({
+		name: "",
+		email: "",
+		password: "",
+		confirmPassword: ""
+	})
+	const [loading, setLoading] = useState(false)
 	const navigate = useNavigate()
 
 	const handleTogglePassword = () => {
 		setShowPassword(!showPassword)
 	}
 
-	const handleSignup = () => {
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target
+		setSignupData(prev => ({ ...prev, [name]: value }))
+		setErrors(prev => ({ ...prev, [name]: "" }))
+	}
+
+	const handleSignup = async () => {
+		const { name, email, password, confirmPassword } = signupData
 		let newErrors = { name: "", email: "", password: "", confirmPassword: "" }
 
 		if (!name) newErrors.name = "Name is required"
-
 		if (!email) newErrors.email = "Email is required"
 		else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Enter a valid email"
-
 		if (!password) newErrors.password = "Password is required"
 		else if (password.length < 6) newErrors.password = "Password must be at least 6 characters"
-
 		if (!confirmPassword) newErrors.confirmPassword = "Confirm password is required"
 		else if (confirmPassword !== password) newErrors.confirmPassword = "Passwords do not match"
 
 		setErrors(newErrors)
+		if (Object.values(newErrors).some(error => error)) return
 
-		if (!newErrors.name && !newErrors.email && !newErrors.password && !newErrors.confirmPassword) {
-			alert("Signup Successful!")
-			navigate("/welcome")
+		try {
+			setLoading(true)
+			const data = await signup(name, email, password)
+			console.log(data, "??????????????????????????")
+			alert("Signup successful!")
+			// navigate("/welcome")
+		} catch (error) {
+			alert(error)
+		} finally {
+			setLoading(false)
 		}
 	}
 
@@ -67,10 +82,19 @@ export function Signup() {
 					label='Name'
 					variant='outlined'
 					fullWidth
-					value={name}
-					onChange={e => setName(e.target.value)}
+					name='name'
+					value={signupData.name}
+					onChange={handleChange}
 					error={!!errors.name}
 					helperText={errors.name}
+					sx={{
+						"& .MuiInputBase-root": {
+							height: "40px"
+						},
+						"& .MuiOutlinedInput-input": {
+							padding: "8px"
+						}
+					}}
 					InputProps={{
 						startAdornment: (
 							<InputAdornment position='start'>
@@ -84,10 +108,19 @@ export function Signup() {
 					label='Email'
 					variant='outlined'
 					fullWidth
-					value={email}
-					onChange={e => setEmail(e.target.value)}
+					name='email'
+					value={signupData.email}
+					onChange={handleChange}
 					error={!!errors.email}
 					helperText={errors.email}
+					sx={{
+						"& .MuiInputBase-root": {
+							height: "40px"
+						},
+						"& .MuiOutlinedInput-input": {
+							padding: "8px"
+						}
+					}}
 					InputProps={{
 						startAdornment: (
 							<InputAdornment position='start'>
@@ -102,10 +135,19 @@ export function Signup() {
 					variant='outlined'
 					fullWidth
 					type={showPassword ? "text" : "password"}
-					value={password}
-					onChange={e => setPassword(e.target.value)}
+					name='password'
+					value={signupData.password}
+					onChange={handleChange}
 					error={!!errors.password}
 					helperText={errors.password}
+					sx={{
+						"& .MuiInputBase-root": {
+							height: "40px"
+						},
+						"& .MuiOutlinedInput-input": {
+							padding: "8px"
+						}
+					}}
 					InputProps={{
 						endAdornment: (
 							<InputAdornment position='end'>
@@ -122,10 +164,19 @@ export function Signup() {
 					variant='outlined'
 					fullWidth
 					type={showPassword ? "text" : "password"}
-					value={confirmPassword}
-					onChange={e => setConfirmPassword(e.target.value)}
+					name='confirmPassword'
+					value={signupData.confirmPassword}
+					onChange={handleChange}
 					error={!!errors.confirmPassword}
 					helperText={errors.confirmPassword}
+					sx={{
+						"& .MuiInputBase-root": {
+							height: "40px"
+						},
+						"& .MuiOutlinedInput-input": {
+							padding: "8px"
+						}
+					}}
 					InputProps={{
 						endAdornment: (
 							<InputAdornment position='end'>
@@ -138,13 +189,13 @@ export function Signup() {
 				/>
 
 				<Box className={styles.links}>
-					<Link href='#' variant='body2' sx={{ textDecoration: "none" }}>
+					<Link href='/login' variant='body2' sx={{ textDecoration: "none" }}>
 						Already have an account? Login
 					</Link>
 				</Box>
 
-				<Button variant='contained' color='primary' fullWidth onClick={handleSignup}>
-					Sign Up
+				<Button variant='contained' color='primary' fullWidth onClick={handleSignup} disabled={loading}>
+					{loading ? "Signing up..." : "Sign Up"}
 				</Button>
 
 				<Divider sx={{ width: "100%", my: 2 }}>OR</Divider>

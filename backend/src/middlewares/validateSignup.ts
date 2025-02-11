@@ -7,10 +7,11 @@ const signupSchema = Joi.object({
 	password: Joi.string().min(6).required()
 })
 
-export const validateSignup = (req: Request, res: Response, next: NextFunction) => {
+export const validateSignup = (req: Request, res: Response, next: NextFunction): void => {
 	const { error } = signupSchema.validate(req.body)
 	if (error) {
-		return res.status(400).json({ error: error.details[0].message })
+		res.status(400).json({ error: error.details[0].message })
+	} else {
+		next()
 	}
-	next()
 }

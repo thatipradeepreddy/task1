@@ -61,9 +61,6 @@ export function Signup() {
 		try {
 			setLoading(true)
 			const data = await signup(name, email, password)
-			console.log(data, "??????????????????????????")
-			alert("Signup successful!")
-			// navigate("/welcome")
 		} catch (error) {
 			alert(error)
 		} finally {

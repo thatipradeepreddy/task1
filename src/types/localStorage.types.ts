@@ -3,4 +3,4 @@ export interface UserDetails {
 	token: string
 	name: string
 	email: string
-}
+} 

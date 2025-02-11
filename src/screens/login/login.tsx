@@ -24,9 +24,10 @@ export function Login() {
 	const [email, setEmail] = useState("")
 	const [password, setPassword] = useState("")
 	const [errors, setErrors] = useState({ email: "", password: "" })
-	const [apiError, setApiError] = useState("")
 	const [loading, setLoading] = useState(false)
 	const [snackbarOpen, setSnackbarOpen] = useState(false)
+	const [snackbarMessage, setSnackbarMessage] = useState("")
+	const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success")
 	const navigate = useNavigate()
 
 	const handleTogglePassword = () => {
@@ -48,13 +49,15 @@ export function Login() {
 		if (!newErrors.email && !newErrors.password) {
 			try {
 				const data = await login(email, password)
-				localStorage.setItem("userDetails", data)
+				localStorage.setItem("userDetails", JSON.stringify(data))
 				setSnackbarOpen(true)
-				setTimeout(() => {
-					navigate("/home")
-				}, 2000)
+				setSnackbarMessage(data.message || "Login Successful!")
+				setSnackbarSeverity("success")
+				navigate("/home")
 			} catch (error: any) {
-				setApiError(error.message || "Login failed")
+				setSnackbarMessage(error.response?.data?.message || "Login failed")
+				setSnackbarSeverity("error")
+				setSnackbarOpen(true)
 			} finally {
 				setLoading(false)
 			}
@@ -67,9 +70,6 @@ export function Login() {
 				<Typography variant='h4' className={styles.title}>
 					Login
 				</Typography>
-
-				{apiError && <Typography color='error'>{apiError}</Typography>}
-
 				<TextField
 					label='Email'
 					variant='outlined'
@@ -116,8 +116,18 @@ export function Login() {
 					</Link>
 				</Box>
 
-				<Button variant='contained' color='primary' fullWidth onClick={handleLogin} disabled={loading}>
-					{loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : "Login"}
+				<Button
+					variant='contained'
+					color='primary'
+					fullWidth
+					onClick={handleLogin}
+					disabled={loading && email.length > 0 && password.length > 0}
+				>
+					{loading && email.length > 0 && password.length > 0 ? (
+						<CircularProgress size={24} sx={{ color: "white" }} />
+					) : (
+						"Login"
+					)}
 				</Button>
 
 				<Divider sx={{ width: "100%", my: 2 }}>OR</Divider>
@@ -142,8 +152,8 @@ export function Login() {
 			</Box>
 
 			<Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
-				<Alert onClose={() => setSnackbarOpen(false)} severity='success' sx={{ width: "100%" }}>
-					Login Successful!
+				<Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: "100%" }}>
+					{snackbarMessage}
 				</Alert>
 			</Snackbar>
 		</Box>

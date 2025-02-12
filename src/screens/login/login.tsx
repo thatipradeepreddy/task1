@@ -55,7 +55,7 @@ export function Login() {
 				setSnackbarSeverity("success")
 				navigate("/home")
 			} catch (error: any) {
-				setSnackbarMessage(error.response?.data?.message || "Login failed")
+				setSnackbarMessage(error)
 				setSnackbarSeverity("error")
 				setSnackbarOpen(true)
 			} finally {
@@ -111,7 +111,7 @@ export function Login() {
 					<Link href='#' variant='body2' sx={{ textDecoration: "none" }}>
 						Forgot Password?
 					</Link>
-					<Link href='#' variant='body2' sx={{ textDecoration: "none" }}>
+					<Link href='/signup' variant='body2' sx={{ textDecoration: "none" }}>
 						New User? Sign Up
 					</Link>
 				</Box>

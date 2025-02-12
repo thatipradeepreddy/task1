@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Box, Button, TextField, Typography, InputAdornment, IconButton, Link, Divider } from "@mui/material"
+import { Box, Button, TextField, Typography, InputAdornment, IconButton, Link, Divider, Alert, Snackbar } from "@mui/material"
 import { Visibility, VisibilityOff } from "@mui/icons-material"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faEnvelope, faUser } from "@fortawesome/free-solid-svg-icons"
@@ -31,6 +31,9 @@ export function Signup() {
 		confirmPassword: ""
 	})
 	const [loading, setLoading] = useState(false)
+	const [snackbarOpen, setSnackbarOpen] = useState(false)
+	const [snackbarMessage, setSnackbarMessage] = useState("")
+	const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success")
 	const navigate = useNavigate()
 
 	const handleTogglePassword = () => {
@@ -60,9 +63,14 @@ export function Signup() {
 
 		try {
 			setLoading(true)
-			const data = await signup(name, email, password)
-		} catch (error) {
-			alert(error)
+			const response = await signup(name, email, password)
+			setSnackbarOpen(true)
+			setSnackbarMessage(response.message)
+			setSnackbarSeverity("success")
+		} catch (error: any) {
+			setSnackbarMessage(error)
+			setSnackbarSeverity("error")
+			setSnackbarOpen(true)
 		} finally {
 			setLoading(false)
 		}
@@ -76,7 +84,7 @@ export function Signup() {
 				</Typography>
 
 				<TextField
-					label='Name'
+					placeholder='Name'
 					variant='outlined'
 					fullWidth
 					name='name'
@@ -86,10 +94,8 @@ export function Signup() {
 					helperText={errors.name}
 					sx={{
 						"& .MuiInputBase-root": {
-							height: "40px"
-						},
-						"& .MuiOutlinedInput-input": {
-							padding: "8px"
+							height: "40px",
+							borderRadius: 2
 						}
 					}}
 					InputProps={{
@@ -102,7 +108,7 @@ export function Signup() {
 				/>
 
 				<TextField
-					label='Email'
+					placeholder='Email'
 					variant='outlined'
 					fullWidth
 					name='email'
@@ -112,10 +118,8 @@ export function Signup() {
 					helperText={errors.email}
 					sx={{
 						"& .MuiInputBase-root": {
-							height: "40px"
-						},
-						"& .MuiOutlinedInput-input": {
-							padding: "8px"
+							height: "40px",
+							borderRadius: 2
 						}
 					}}
 					InputProps={{
@@ -128,7 +132,7 @@ export function Signup() {
 				/>
 
 				<TextField
-					label='Password'
+					placeholder='Password'
 					variant='outlined'
 					fullWidth
 					type={showPassword ? "text" : "password"}
@@ -139,10 +143,8 @@ export function Signup() {
 					helperText={errors.password}
 					sx={{
 						"& .MuiInputBase-root": {
-							height: "40px"
-						},
-						"& .MuiOutlinedInput-input": {
-							padding: "8px"
+							height: "40px",
+							borderRadius: 2
 						}
 					}}
 					InputProps={{
@@ -157,7 +159,7 @@ export function Signup() {
 				/>
 
 				<TextField
-					label='Confirm Password'
+					placeholder='Confirm Password'
 					variant='outlined'
 					fullWidth
 					type={showPassword ? "text" : "password"}
@@ -168,10 +170,8 @@ export function Signup() {
 					helperText={errors.confirmPassword}
 					sx={{
 						"& .MuiInputBase-root": {
-							height: "40px"
-						},
-						"& .MuiOutlinedInput-input": {
-							padding: "8px"
+							height: "40px",
+							borderRadius: 2
 						}
 					}}
 					InputProps={{
@@ -215,6 +215,11 @@ export function Signup() {
 					Sign Up with Microsoft
 				</Button>
 			</Box>
+			<Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>
+				<Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: "100%" }}>
+					{snackbarMessage}
+				</Alert>
+			</Snackbar>
 		</Box>
 	)
 }

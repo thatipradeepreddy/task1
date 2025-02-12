@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5000/api/auth"
+const API_BASE_URL = "http://localhost:6000/api/auth"
 
 export const signup = async (name: string, email: string, password: string) => {
 	try {

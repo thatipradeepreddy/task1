@@ -64,6 +64,10 @@ export function Login() {
 		}
 	}
 
+	const handleGoogleLogin = () => {
+		window.location.href = "http://localhost:6000/auth/google"
+	}
+
 	return (
 		<Box className={styles.container}>
 			<Box className={styles.loginBox}>
@@ -136,6 +140,7 @@ export function Login() {
 					variant='outlined'
 					fullWidth
 					className={styles.socialButton}
+					onClick={handleGoogleLogin}
 					startIcon={<img src='./google.png' alt='Google' style={{ width: 25, height: 25 }} />}
 				>
 					Login with Google

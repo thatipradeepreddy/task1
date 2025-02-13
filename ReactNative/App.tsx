@@ -1,103 +1,96 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useEffect, useState } from "react"
+import { View, ActivityIndicator } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { NavigationContainer } from "@react-navigation/native"
+import { createStackNavigator } from "@react-navigation/stack"
+import { StackScreenProps } from "@react-navigation/stack"
+import { Login } from "./src/screens/login"
+import Home from "./src/screens/home"
 
-import React from "react"
-import type { PropsWithChildren } from "react"
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, useColorScheme, View } from "react-native"
+const Stack = createStackNavigator()
 
-import { Colors, DebugInstructions, Header, LearnMoreLinks, ReloadInstructions } from "react-native/Libraries/NewAppScreen"
-
-type SectionProps = PropsWithChildren<{
-	title: string
-}>
-
-function Section({ children, title }: SectionProps): React.JSX.Element {
-	const isDarkMode = useColorScheme() === "dark"
-	return (
-		<View style={styles.sectionContainer}>
-			<Text
-				style={[
-					styles.sectionTitle,
-					{
-						color: isDarkMode ? Colors.white : Colors.black
-					}
-				]}
-			>
-				{title}
-			</Text>
-			<Text
-				style={[
-					styles.sectionDescription,
-					{
-						color: isDarkMode ? Colors.light : Colors.dark
-					}
-				]}
-			>
-				{children}
-			</Text>
-		</View>
-	)
+interface ProtectedRouteProps extends StackScreenProps<any> {
+	component: React.ComponentType<any>
 }
 
-function App(): React.JSX.Element {
-	const isDarkMode = useColorScheme() === "dark"
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ component: Component, ...rest }) => {
+	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
-	const backgroundStyle = {
-		backgroundColor: isDarkMode ? Colors.darker : Colors.lighter
+	useEffect(() => {
+		const checkLoginStatus = async () => {
+			try {
+				const userData = await AsyncStorage.getItem("userDetails")
+				setIsAuthenticated(!!userData)
+			} catch (error) {
+				console.error("Error checking login status:", error)
+				setIsAuthenticated(false)
+			}
+		}
+
+		checkLoginStatus()
+	}, [])
+
+	if (isAuthenticated === null) {
+		return (
+			<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+				<ActivityIndicator size='large' color='#0000ff' />
+			</View>
+		)
+	}
+
+	return isAuthenticated ? <Component {...rest} /> : <Login />
+}
+
+const App = () => {
+	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+	useEffect(() => {
+		const checkLoginStatus = async () => {
+			try {
+				const userData = await AsyncStorage.getItem("userData")
+				setIsAuthenticated(!!userData)
+			} catch (error) {
+				console.error("Error checking login status:", error)
+				setIsAuthenticated(false)
+			}
+		}
+
+		checkLoginStatus()
+	}, [])
+
+	if (isAuthenticated === null) {
+		return (
+			<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+				<ActivityIndicator size='large' color='#0000ff' />
+			</View>
+		)
 	}
 
 	return (
-		<SafeAreaView style={backgroundStyle}>
-			<StatusBar
-				barStyle={isDarkMode ? "light-content" : "dark-content"}
-				backgroundColor={backgroundStyle.backgroundColor}
-			/>
-			<ScrollView contentInsetAdjustmentBehavior='automatic' style={backgroundStyle}>
-				<Header />
-				<View
-					style={{
-						backgroundColor: isDarkMode ? Colors.black : Colors.white
+		<NavigationContainer>
+			<Stack.Navigator initialRouteName={isAuthenticated ? "homepage" : "landing"}>
+				<Stack.Screen
+					name='login'
+					component={Login}
+					options={{
+						headerShown: true,
+						headerTitle: "Login to Continue",
+						headerTitleAlign: "center"
+					}}
+				/>
+				<Stack.Screen
+					name='homepage'
+					options={{
+						headerShown: true,
+						headerTitle: "task1",
+						headerTitleAlign: "center"
 					}}
 				>
-					<Section title='Step One'>
-						Edit <Text style={styles.highlight}>App.tsx</Text> to change this screen and then come back to see your
-						edits.
-					</Section>
-					<Section title='See Your Changes'>
-						<ReloadInstructions />
-					</Section>
-					<Section title='Debug'>
-						<DebugInstructions />
-					</Section>
-					<Section title='Learn More'>Read the docs to discover what to do next:</Section>
-					<LearnMoreLinks />
-				</View>
-			</ScrollView>
-		</SafeAreaView>
+					{props => <ProtectedRoute {...props} component={Home} />}
+				</Stack.Screen>
+			</Stack.Navigator>
+		</NavigationContainer>
 	)
 }
-
-const styles = StyleSheet.create({
-	sectionContainer: {
-		marginTop: 32,
-		paddingHorizontal: 24
-	},
-	sectionTitle: {
-		fontSize: 24,
-		fontWeight: "600"
-	},
-	sectionDescription: {
-		marginTop: 8,
-		fontSize: 18,
-		fontWeight: "400"
-	},
-	highlight: {
-		fontWeight: "700"
-	}
-})
 
 export default App

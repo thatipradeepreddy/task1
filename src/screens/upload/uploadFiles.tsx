@@ -1,155 +1,101 @@
-import React, { useState, useRef, useEffect } from "react"
-import { Box, Button, LinearProgress, Typography, CircularProgress } from "@mui/material"
-import CloudUploadIcon from "@mui/icons-material/CloudUpload"
+import React, { useState } from "react"
+import axios from "axios"
+import { Button, LinearProgress, Typography, Box, TextField } from "@mui/material"
 
-export function FileUpload() {
-	const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-	const [progress, setProgress] = useState<number>(0)
-	const [timeRemaining, setTimeRemaining] = useState<string>("")
+interface UploadProgress {
+	percent: number
+	estimatedTime: number // in seconds
+}
+
+const FileUpload: React.FC = () => {
+	const [file, setFile] = useState<File | null>(null)
+	const [progress, setProgress] = useState<UploadProgress>({ percent: 0, estimatedTime: 0 })
 	const [uploading, setUploading] = useState<boolean>(false)
-	const abortControllerRef = useRef<AbortController | null>(null)
+	const [email, setEmail] = useState<string>("")
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files) {
-			const filesArray = Array.from(e.target.files)
-			setSelectedFiles(filesArray)
-			setProgress(0)
-			setTimeRemaining("")
+			setFile(e.target.files[0])
 		}
 	}
 
-	const handleUpload = async () => {
-		if (selectedFiles.length === 0) return
+	const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setEmail(e.target.value)
+	}
+
+	const uploadFile = async () => {
+		if (!file || !email) return
+
+		setUploading(true)
 
 		const formData = new FormData()
-		let totalSize = 0
-		selectedFiles.forEach(file => {
-			formData.append("files", file)
-			totalSize += file.size
-		})
-		formData.append("totalSize", totalSize.toString()) 
+		formData.append("file", file)
+		formData.append("email", email)
+
+		const config = {
+			headers: {
+				"Content-Type": "multipart/form-data"
+			},
+			onUploadProgress: (progressEvent: any) => {
+				const total = progressEvent.total
+				const loaded = progressEvent.loaded
+
+				// Calculate upload percentage
+				const percent = Math.round((loaded / total) * 100)
+
+				// Estimate remaining time (simple estimate)
+				const timeElapsed = loaded / progressEvent.timeStamp
+				const estimatedTime = (total - loaded) / timeElapsed
+
+				setProgress({
+					percent,
+					estimatedTime: Math.round(estimatedTime)
+				})
+			}
+		}
 
 		try {
-			setUploading(true)
-			abortControllerRef.current = new AbortController()
-
-			const response = await fetch("http://localhost:4000/api/upload", {
-				method: "POST",
-				body: formData,
-				signal: abortControllerRef.current.signal
-			})
-
-			if (!response.ok) {
-				throw new Error(`Upload failed with status ${response.status}`)
-			}
-
-			if (!response.body) {
-				throw new Error("Response body is not readable")
-			}
-
-			const reader = response.body.getReader()
-			const decoder = new TextDecoder()
-			let buffer = ""
-
-			while (true) {
-				const { done, value } = await reader.read()
-				if (done) break
-
-				buffer += decoder.decode(value, { stream: true })
-				const lines = buffer.split("\n\n")
-				buffer = lines.pop() || ""
-
-				for (const line of lines) {
-					if (line.startsWith("data: ")) {
-						try {
-							const data = JSON.parse(line.slice(6))
-							if (data.percentage && data.timeRemaining) {
-								setProgress(Number(data.percentage))
-								setTimeRemaining(`${Number(data.timeRemaining).toFixed(2)} seconds remaining`)
-							}
-							
-							if (data.error) {
-								throw new Error(data.error)
-							}
-						} catch (error) {
-							console.error("Error parsing stream data:", error)
-						}
-					}
-				}
-			}
-		} catch (error: any) {
-			console.error("Upload error:", error)
-			alert(`Upload failed: ${error.message}`)
-		} finally {
+			// Replace the URL with your FastAPI backend URL
+			const response = await axios.post("http://localhost:8000/upload", formData, config)
 			setUploading(false)
-			abortControllerRef.current = null
+			alert("File uploaded successfully!")
+			console.log("Response from API:", response.data)
+		} catch (error) {
+			console.error("Error uploading file:", error)
+			setUploading(false)
+			alert("Failed to upload file")
 		}
 	}
 
-	useEffect(() => {
-		return () => {
-			if (abortControllerRef.current) {
-				abortControllerRef.current.abort()
-			}
-		}
-	}, [])
-
 	return (
-		<Box
-			sx={{
-				width: "100%",
-				maxWidth: 500,
-				mx: "auto",
-				mt: 8,
-				p: 4,
-				boxShadow: 3,
-				borderRadius: 2,
-				textAlign: "center"
-			}}
-		>
-			<Typography variant='h5' gutterBottom>
-				File Upload with Progress
-			</Typography>
-
-			<input type='file' multiple onChange={handleFileChange} style={{ display: "none" }} id='file-input' />
-			<label htmlFor='file-input'>
-				<Button variant='outlined' component='span' startIcon={<CloudUploadIcon />}>
-					Choose Files
-				</Button>
-			</label>
-
-			{selectedFiles.length > 0 && (
-				<Box mt={2}>
-					{selectedFiles.map((file, index) => (
-						<Typography key={index}>{file.name}</Typography>
-					))}
-				</Box>
-			)}
-
-			<Box mt={2}>
-				<Button
-					variant='contained'
-					color='primary'
-					onClick={handleUpload}
-					disabled={selectedFiles.length === 0 || uploading}
-				>
-					Upload
-				</Button>
-			</Box>
-
+		<Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", padding: 2 }}>
+			<Typography variant='h6'>Upload a File</Typography>
+			<TextField
+				label='Email'
+				type='email'
+				value={email}
+				onChange={handleEmailChange}
+				variant='outlined'
+				sx={{ marginBottom: 2 }}
+			/>
+			<input
+				type='file'
+				onChange={handleFileChange}
+				accept='application/pdf, .doc, .docx, .txt, .jpg, .png'
+				disabled={uploading}
+			/>
 			{uploading && (
-				<Box mt={4}>
-					<LinearProgress variant='determinate' value={progress} />
-					<Typography mt={1}>{progress}%</Typography>
-					<Typography variant='caption'>{timeRemaining}</Typography>
-				</Box>
+				<>
+					<LinearProgress variant='determinate' value={progress.percent} sx={{ width: "100%", marginTop: 2 }} />
+					<Typography variant='body2'>{progress.percent}% Uploaded</Typography>
+					<Typography variant='body2'>Estimated Time: {progress.estimatedTime} seconds</Typography>
+				</>
 			)}
-
-			{uploading && (
-				<Box mt={2}>
-					<CircularProgress size={24} />
-				</Box>
-			)}
+			<Button variant='contained' onClick={uploadFile} disabled={uploading || !file || !email} sx={{ marginTop: 2 }}>
+				{uploading ? "Uploading..." : "Upload"}
+			</Button>
 		</Box>
 	)
 }
+
+export default FileUpload

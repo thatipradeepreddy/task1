@@ -4,9 +4,9 @@ import { Login } from "./screens/login/login"
 import { Home } from "./screens/home/home"
 import { UserDetails } from "./types/localStorage.types"
 import { JSX } from "react"
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css"
 
-import { FileUpload } from "./screens/upload/uploadFiles"
+import FileUpload from "./screens/upload/uploadFiles"
 import MapView from "./screens/maps/map"
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -23,8 +23,10 @@ function App() {
 				<Route path='/' element={<Login />} />
 				<Route path='/signup' element={<Signup />} />
 				<Route path='/maps' element={<MapView />} />
-
-				<Route path='/home' element={
+				<Route path='/fileupload' element={<FileUpload />} />
+				<Route
+					path='/home'
+					element={
 						<ProtectedRoute>
 							<Home />
 							{/* </FileUpload> */}

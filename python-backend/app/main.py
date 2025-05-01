@@ -4,10 +4,9 @@ from app.s3_utils import upload_file_to_s3, get_file_from_s3, delete_file_from_s
 from app.dynamodb_utils import save_metadata_to_dynamodb, get_metadata_from_dynamodb, delete_metadata_from_dynamodb, update_metadata_in_dynamodb
 from fastapi import Form
 from app.email_utils import send_upload_email
-
+from fastapi import WebSocket, WebSocketDisconnect
 
 app = FastAPI()
-
 
 origins = [
     "*"  # Allow any origin
@@ -21,7 +20,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Create (Upload)
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), email: str = Form(...)):
@@ -29,6 +27,22 @@ async def upload_file(file: UploadFile = File(...), email: str = Form(...)):
     save_metadata_to_dynamodb(file.filename, s3_key, email)
     send_upload_email(email, file.filename, s3_key)
     return {"message": "File uploaded successfully", "s3_key": s3_key}
+
+async def websocket_upload_progress(websocket: WebSocket):
+    await websocket.accept()
+    
+    # Mimic file upload progress and send it in real-time
+    total_size = 1000000000  # Set the total file size here (in bytes)
+    uploaded = 0
+    
+    while uploaded < total_size:
+        uploaded += 1000000  # Update by chunk size (1 MB)
+        percent = (uploaded / total_size) * 100
+        await websocket.send_text(f"Progress: {percent:.2f}%")
+        await asyncio.sleep(1)  # Simulate a delay between progress updates
+
+    await websocket.send_text("Upload complete!")
+    await websocket.close()
 
 # Read (Get file)
 @app.get("/file/{s3_key}")

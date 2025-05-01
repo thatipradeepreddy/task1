@@ -1,50 +1,60 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.s3_utils import upload_file_to_s3, get_file_from_s3, delete_file_from_s3, update_file_in_s3
 from app.dynamodb_utils import save_metadata_to_dynamodb, get_metadata_from_dynamodb, delete_metadata_from_dynamodb, update_metadata_in_dynamodb
-from fastapi import Form
 from app.email_utils import send_upload_email
-from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+from typing import Dict
+from uuid import uuid4
 
 app = FastAPI()
 
-origins = [
-    "*"  # Allow any origin
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create (Upload)
+# Store WebSocket connections with a unique session ID
+websocket_sessions: Dict[str, WebSocket] = {}
+
+@app.websocket("/ws/upload-progress/{session_id}")
+async def websocket_upload_progress(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    websocket_sessions[session_id] = websocket
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        print(f"WebSocket disconnected for session {session_id}")
+        websocket_sessions.pop(session_id, None)
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), email: str = Form(...)):
-    s3_key = upload_file_to_s3(file, file.filename)
+    # Generate a unique session ID for this upload
+    session_id = str(uuid4())
+    
+    # Wait briefly to allow WebSocket connection to establish
+    await asyncio.sleep(0.1)
+    
+    # Get the WebSocket for this session, if available
+    websocket = websocket_sessions.get(session_id)
+    
+    s3_key = await upload_file_to_s3(file, file.filename, websocket)
     save_metadata_to_dynamodb(file.filename, s3_key, email)
     send_upload_email(email, file.filename, s3_key)
-    return {"message": "File uploaded successfully", "s3_key": s3_key}
-
-async def websocket_upload_progress(websocket: WebSocket):
-    await websocket.accept()
     
-    # Mimic file upload progress and send it in real-time
-    total_size = 1000000000  # Set the total file size here (in bytes)
-    uploaded = 0
+    # Clean up WebSocket session
+    if session_id in websocket_sessions:
+        await websocket_sessions[session_id].close()
+        websocket_sessions.pop(session_id, None)
     
-    while uploaded < total_size:
-        uploaded += 1000000  # Update by chunk size (1 MB)
-        percent = (uploaded / total_size) * 100
-        await websocket.send_text(f"Progress: {percent:.2f}%")
-        await asyncio.sleep(1)  # Simulate a delay between progress updates
+    return {"message": "File uploaded successfully", "s3_key": s3_key, "session_id": session_id}
 
-    await websocket.send_text("Upload complete!")
-    await websocket.close()
-
-# Read (Get file)
 @app.get("/file/{s3_key}")
 async def get_file(s3_key: str):
     file_content = get_file_from_s3(s3_key)
@@ -52,7 +62,6 @@ async def get_file(s3_key: str):
         raise HTTPException(status_code=404, detail="File not found")
     return {"file_content": file_content}
 
-# Update (Overwrite file)
 @app.put("/update/{s3_key}")
 async def update_file(s3_key: str, file: UploadFile = File(...)):
     updated_s3_key = update_file_in_s3(file, s3_key)
@@ -61,20 +70,15 @@ async def update_file(s3_key: str, file: UploadFile = File(...)):
         update_metadata_in_dynamodb(s3_key, file.filename)
     return {"message": "File updated successfully", "updated_s3_key": updated_s3_key}
 
-# Delete (File and Metadata)
 @app.delete("/delete/{s3_key}")
 async def delete_file(s3_key: str):
-    # Delete from S3
     file_deleted = delete_file_from_s3(s3_key)
     if not file_deleted:
         raise HTTPException(status_code=404, detail="File not found in S3")
     
-    # Delete metadata from DynamoDB
     delete_metadata_from_dynamodb(s3_key)
     
     return {"message": "File and metadata deleted successfully"}
 
 def send_upload_email(email: str, filename: str, s3_key: str):
-    # Placeholder email sending logic (currently just logs to console)
     print(f"Email sent to {email} for upload of file '{filename}' with key '{s3_key}'")
-

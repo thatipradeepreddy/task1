@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from uuid import uuid4
 from fastapi import UploadFile, HTTPException
 from boto3.s3.transfer import TransferConfig
+import json
 
 load_dotenv()
 
@@ -17,39 +18,44 @@ s3 = boto3.client(
 
 BUCKET = os.getenv("S3_BUCKET_NAME")
 
-# Helper function to track progress
-def progress_callback(bytes_transferred, total_bytes):
+async def progress_callback(bytes_transferred, total_bytes, start_time, websocket=None):
     percent = (bytes_transferred / total_bytes) * 100
-    elapsed_time = time.time() - start_time  # Elapsed time for progress calculation
+    elapsed_time = time.time() - start_time
     speed = bytes_transferred / elapsed_time if elapsed_time > 0 else 0
     estimated_time = (total_bytes - bytes_transferred) / speed if speed > 0 else 0
-    print(f"Progress: {percent:.2f}% | Elapsed time: {elapsed_time:.2f}s | Speed: {speed/1024:.2f} KB/s | Estimated time: {estimated_time:.2f}s")
+    
+    progress_data = {
+        "percent": round(percent, 2),
+        "elapsed_time": round(elapsed_time, 2),
+        "speed": round(speed / 1024, 2),  # KB/s
+        "estimated_time": round(estimated_time, 2)
+    }
+    
+    if websocket:
+        try:
+            await websocket.send_text(json.dumps(progress_data))
+        except Exception as e:
+            print(f"WebSocket send error: {e}")
+    print(f"Progress: {progress_data['percent']}% | Elapsed time: {progress_data['elapsed_time']}s | Speed: {progress_data['speed']} KB/s | Estimated time: {progress_data['estimated_time']}s")
 
-
-# Upload the file in chunks and track progress
-def upload_file_to_s3(file: UploadFile, filename: str):
+async def upload_file_to_s3(file: UploadFile, filename: str, waveguide=None):
     unique_filename = f"{uuid4()}_{filename}"
     
-    # Set the configuration for multipart upload (using default chunk size and retry settings)
-    config = TransferConfig(multipart_chunksize=8 * 1024 * 1024)  # 8 MB chunk size
+    config = TransferConfig(multipart_chunksize=8 * 1024 * 1024)
     
-    # Start the multi-part upload
     upload_id = s3.create_multipart_upload(Bucket=BUCKET, Key=unique_filename)['UploadId']
     
     total_size = file.file.seek(0, os.SEEK_END)
     file.file.seek(0)
     
-    # Upload in parts and track progress
     part_number = 1
     parts = []
     
-    global start_time
     start_time = time.time()
     
-    bytes_uploaded = 0  # Track uploaded bytes
+    bytes_uploaded = 0
     
     while file_content := file.file.read(config.multipart_chunksize):
-        # Upload part
         part = s3.upload_part(
             Bucket=BUCKET,
             Key=unique_filename,
@@ -58,20 +64,24 @@ def upload_file_to_s3(file: UploadFile, filename: str):
             Body=file_content
         )
         
-        # Track progress manually by calculating the number of bytes uploaded
         bytes_uploaded += len(file_content)
-        progress_callback(bytes_uploaded, total_size)
+        await progress_callback(bytes_uploaded, total_size, start_time, waveguide)
         
         parts.append({'PartNumber': part_number, 'ETag': part['ETag']})
         part_number += 1
     
-    # Complete the upload
     s3.complete_multipart_upload(
         Bucket=BUCKET,
         Key=unique_filename,
         UploadId=upload_id,
         MultipartUpload={'Parts': parts}
     )
+    
+    if waveguide:
+        try:
+            await waveguide.send_text(json.dumps({"status": "complete"}))
+        except Exception as e:
+            print(f"WebSocket send error on completion: {e}")
     
     return unique_filename
 

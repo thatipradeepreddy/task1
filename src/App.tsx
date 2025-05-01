@@ -4,7 +4,10 @@ import { Login } from "./screens/login/login"
 import { Home } from "./screens/home/home"
 import { UserDetails } from "./types/localStorage.types"
 import { JSX } from "react"
+import 'leaflet/dist/leaflet.css';
+
 import { FileUpload } from "./screens/upload/uploadFiles"
+import MapView from "./screens/maps/map"
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 	const storedUserDetails = localStorage.getItem("userDetails")
@@ -19,6 +22,8 @@ function App() {
 			<Routes>
 				<Route path='/' element={<Login />} />
 				<Route path='/signup' element={<Signup />} />
+				<Route path='/maps' element={<MapView />} />
+
 				<Route path='/home' element={
 						<ProtectedRoute>
 							<Home />
